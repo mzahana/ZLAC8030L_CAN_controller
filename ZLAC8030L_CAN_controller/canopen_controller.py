@@ -30,7 +30,9 @@ import logging
 import traceback
 import time
 import canopen
+from canopen.profiles.p402 import BaseNode402
 from scipy.fft import idstn
+
 
 # Set logging level. logging.DEBUG will log/print all messages
 logging.basicConfig(level=logging.DEBUG)
@@ -39,7 +41,7 @@ class MotorController:
    """MotorController
    Implements convenience methods to monitor and operate ZLAC8030L drivers
    """
-   def __init__(self, channel='can0', bustype='socketcan', bitrate=250000, node_ids=None, debug=False):
+   def __init__(self, channel='can0', bustype='socketcan', bitrate=500000, node_ids=None, debug=False, eds_file=None):
       """
       @brief Creates and connects to CAN bus
 
@@ -48,15 +50,18 @@ class MotorController:
       @param channel CAN channel
       @param bustype CAN bus type. See Python canopen & can docs
       @param bitrate CAN bus bitrate. See Python canopen & can docs
-      @param node_ids List of expected node IDs. If None, will continue with the available nodes. If specified, will exit if an expected node does not exist onthe bus 
+      @param node_ids List of expected node IDs. If None, will continue with the available nodes. If specified, will exit if an expected node does not exist on the bus 
       @debug Print logging/debug messages
       """
-      self._debug = debug
+      self._debug = debug   # what is the use of the _ self._debug
       self._network = canopen.Network() # CAN bus
       self._channel = channel
       self._bustype = bustype
       self._bitrate = bitrate
       self._node_ids = node_ids
+
+      if eds_file is None:
+         raise Exception("eds_file can't be None, please provide valid eds file path!")
 
       # Following the eaxmple in https://github.com/christiansandberg/canopen/blob/master/examples/simple_ds402_node.py
       # Try to connect
@@ -70,21 +75,34 @@ class MotorController:
          # We may need to wait a short while here to allow all nodes to respond
          time.sleep(0.05)
          logging.info('Available nodes: %s', self._network.scanner.nodes)
-
+                  
          if node_ids is not None: # User specified the expected nodes that should be available
-            for id in node_ids:
+            for node_id in node_ids:
                # Sanity checks
-               if not type(id) is int:
+               if not type(node_id) is int:
                   logging.error("Only integers are allowed for node ID") 
                   raise TypeError("Only integers are allowed for node ID")
-               if id < 0 or id > 127:
-                  logging.error("Node ID %s is not in the range [0,127]", id) 
-                  raise Exception("Node ID {} is not in the range [0,127]".format(id))
+               if node_id < 0 or node_id > 127:
+                  logging.error("Node ID %s is not in the range [0,127]", node_id) 
+                  raise Exception("Node ID {} is not in the range [0,127]".format(node_id))
 
-               if not (id in self._network.scanner.nodes):
-                  logging.error("Node ID %s is not available in %s",id, self._network.scanner.nodes)
-                  raise Exception("Node ID {} is not available in {}".format(id, self._network.scanner.nodes)) 
-
+               if not (node_id in self._network.scanner.nodes):
+                  logging.error("Node ID %s is not available in %s",node_id, self._network.scanner.nodes)
+                  raise Exception("Node ID {} is not available in {}".format(node_id, self._network.scanner.nodes)) 
+         
+         # Add CANopen nodes to the network
+         # This will add the detect nodes to the network and set them up with corresponding Object Dictionaries
+         for node_id in self._network.scanner.nodes:
+            node = canopen.BaseNode402(node_id, eds_file) # This assumes that we can use the same eds file for all motor drivers
+            self._network.add_node(node)
+            # Reset the network
+            node.nmt.state = 'RESET COMMUNICATION'
+            #node.nmt.state = 'RESET'
+            node.nmt.wait_for_bootup(15)
+            logging.debug('node {} state) = {}'.format(node_id, node.nmt.state))
+            node.op_mode = 'PROFILED VELOCITY'
+            logging.debug('Node {} op_mode has been set to {}, it should be PROFILED VELOCITY!'.format(node_id, node.op_mode))
+            
       except Exception as e:
          exc_type, exc_obj, exc_tb = sys.exc_info()
          fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -118,19 +136,40 @@ class MotorController:
             self._network.disconnect()
             return
 
-   def setNMTPreOperation(self, node_ids):
+   def setNMTPreOperation(self, node_ids=None):
       """
+      If node_ids=None, this method broadcasts network.nmt.state to 'PRE-OPERATIONAL' for all nodes in the network 
       Sets node.nmt.state to 'PRE-OPERATIONAL'. Raises exceptions on failures
 
       Parameters
       --
-      @param node_id list of Node IDs. List of [int]
+      @param node_ids list of Node IDs. List of [int]
       """
+      if node_ids == None:
+         self._network.nmt.state = 'PRE-OPERATIONAL' 
+
+         # TODO Needs checking
+         for node_id in self._network:
+            node =self._network[node_id]
+            node.nmt.wait_for_heartbeat()
+            assert node.nmt.state == 'PRE-OPERATIONAL'
+         return
+
       # Sanity checks
       if not type(node_ids) is list:
-         raise Exception("[enableOperation] node_ids should be a list of at least one node ID")
+         raise Exception("[preOperation] node_ids should be a list of at least one node ID")
 
-      # TODO Needs implementation
+      # TODO Needs checking  
+      logging.error('changing state to PRE-OPERATIONAL for all nodes')
+      for node_id in self._network:
+            node =self._network[node_id]
+            try:
+               node.nmt.state = 'PRE-OPERATIONAL'
+            except:
+               canopen.nmt.NmtError
+               logging.error("Setting NMT [PreOperation] failed for Node ID %s",node_id)
+               raise Exception("Setting NMT [PreOperation] failed for Node ID {}".format(node_id)) 
+            return
 
    def enableOperation(self, node_ids):
       """
@@ -172,9 +211,13 @@ class MotorController:
       --
       @return status Operation status. Raises an exception on error
       """
-      # Sanity checks
-      # TODO Needs implementation
-      pass
+      # Sanity checks # Needs checking
+      self._checkNodeID(node_id)
+            
+      # TODO Needs checking 
+      # Read the state of the Statusword
+      return self._network[node_id].statusword # 
+      
 
    def getNMTStatus(self, node_id):
       """
@@ -189,8 +232,32 @@ class MotorController:
       @return status NMT status. Raises an exception on error
       """
       # Sanity checks
+
       # TODO Needs implementation
       pass
+
+   def _checkNodeID(self, node_id):
+      if not type(node_id) is int:
+         raise Exception("[nodeID_sanity_checks] Node ID {} is not int".format(id))
+      if node_id < 0 or node_id > 127:
+         logging.error("Node ID %s is not in the range [0,127]", id) 
+         raise Exception("Node ID {} is not in the range [0,127]".format(id))
+      if not node_id in self._node_ids:
+         raise Exception("Node ID {} is not available!".format(id))
+        
+
+   def setVelocity(self, node_id):
+      """
+      Sets velocity value of a particular node
+
+      Parameters
+      --
+      @param node_id Node ID [int]
+      """
+      # Sanity checks
+      self._checkNodeID(node_id)
+
+
 
    def getVelocity(self, node_id):
       """
@@ -206,6 +273,8 @@ class MotorController:
       """
       # Sanity checks
       # TODO Needs implementation
+      #actual_speed = self._network[node_id].sdo['Current Speed']
+      
       pass
 
    def getEncoder(self, node_id):
@@ -236,3 +305,4 @@ class MotorController:
       # Sanity checks
       # TODO Needs implementation
       pass
+   
