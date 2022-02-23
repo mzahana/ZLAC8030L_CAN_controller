@@ -1,17 +1,29 @@
-"""
-BSD 3-Clause License
+Metadata-Version: 1.0
+Name: ZLAC8030L-CAN-controller
+Version: 0.1.0
+Summary: A Python package for CANopen communication with the ZLAC8030L motor driver.
+Home-page: https://github.com/mzahana/ZLAC8030L_CAN_controller.git
+Author: Mohamed Abdelkader
+Author-email: mohamedashraf123@gmail.com
+License: BSD 3-Clause License
+
 Copyright (c) 2022, Mohamed Abdelkader Zahana
 All rights reserved.
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
+
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
+
 3. Neither the name of the copyright holder nor the names of its
    contributors may be used to endorse or promote products derived from
    this software without specific prior written permission.
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,19 +34,15 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
 
-"""
-@brief This is a dummy test script.
-"""
-
-import  ZLAC8030L_CAN_controller.canopen_controller
-from ZLAC8030L_CAN_controller.canopen_controller import MotorController
-
-def main():
-   print("This is the dummy_test.py script. Nothing to do!!! \n")
-   obj = MotorController(channel='can1', bustype='socketcan', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0')
-  
-
-if __name__=="__main__":
-    main()
+Description: # ZLAC80380L_CAN_controller
+        A Python package for CANopen communication with the ZLAC8030L motor driver
+        
+        # Prerequisites
+        
+        # Installation
+        
+        # Usage
+        
+        
+Platform: UNKNOWN

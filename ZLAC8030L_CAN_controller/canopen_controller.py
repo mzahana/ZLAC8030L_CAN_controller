@@ -31,8 +31,8 @@ import traceback
 import time
 import canopen
 from canopen.profiles.p402 import BaseNode402
-from scipy.fft import idstn
-
+from scipy.fftpack import fft
+#from scipy.fftpack import idstn
 
 # Set logging level. logging.DEBUG will log/print all messages
 logging.basicConfig(level=logging.DEBUG)

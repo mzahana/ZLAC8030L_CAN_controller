@@ -25,15 +25,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 """
-@brief This is a dummy test script.
+@brief This is a test script for requesting object dictionary entries from a node.
 """
 
-import  ZLAC8030L_CAN_controller.canopen_controller
-from ZLAC8030L_CAN_controller.canopen_controller import MotorController
+import canopen
+
+node_id = 3
+eds_file = 'eds/ZLAC8030L-V1.0.eds'
+obj_dict_id = 0x1018
+obj_id2 = 0x1000
 
 def main():
-   print("This is the dummy_test.py script. Nothing to do!!! \n")
-   obj = MotorController(channel='can1', bustype='socketcan', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0')
+   network = canopen.Network()
+   node = canopen.BaseNode402(node_id, eds_file)
+
+   network.connect(bustype='socketcan', channel='can1', bitrate=500000)
+   network.add_node(node)
+
+   # Send NMT start to all nodes
+   network.send_message(0x0, [0x1, 0])
+   node.nmt.wait_for_heartbeat()
+   assert node.nmt.state == 'OPERATIONAL'
+
+   #  vednor_id = node.sdo[obj_dict_id][1].raw
+
+   #  print('Vendor ID [{}] = {} \n'.format(obj_dict_id, vednor_id))
   
 
 if __name__=="__main__":
