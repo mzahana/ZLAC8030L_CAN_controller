@@ -1333,7 +1333,7 @@ PDOMapping=0
 ObjFlags=0x0
 
 [60FF]
-ParameterName=velocity speed
+ParameterName=Target speed
 ObjectType=0x7
 DataType=0x0004
 AccessType=rw

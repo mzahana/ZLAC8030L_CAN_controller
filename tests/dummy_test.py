@@ -28,12 +28,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 @brief This is a dummy test script.
 """
 
+import logging
 import  ZLAC8030L_CAN_controller.canopen_controller
 from ZLAC8030L_CAN_controller.canopen_controller import MotorController
+import time
 
+node_id = 3
 def main():
    print("This is the dummy_test.py script. Nothing to do!!! \n")
-   obj = MotorController(channel='can1', bustype='socketcan', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0')
+   obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
+
+   # Get some velocities
+   t1 = time.time()
+   N = 1000
+   for i in range(N):
+     vel =  obj.getVelocity(node_id)
+   #   logging.info("Curent velocity = {} rpm \n".format(vel))
+
+     obj.setVelocity(node_id=node_id, vel=i/10.)
+
+   obj.setVelocity(node_id=node_id, vel=0.0)
+
+   logging.info("Getting 100 velocity readings took {} second(s)\n".format(time.time()-t1))
+
+   obj.disconnectNetwork
   
 
 if __name__=="__main__":

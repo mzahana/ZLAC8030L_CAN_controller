@@ -29,6 +29,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import canopen
+import os
+
+bitrate = 500000
+#Set CAN0 speed to 500K bps
+# os.system('sudo ifconfig can0 down')
+# os.system('sudo ip link set can0 type can bitrate {}'.format(bitrate))
+# os.system('sudo ifconfig can0 up')
 
 node_id = 3
 eds_file = 'eds/ZLAC8030L-V1.0.eds'
@@ -39,7 +46,7 @@ def main():
    network = canopen.Network()
    node = canopen.BaseNode402(node_id, eds_file)
 
-   network.connect(bustype='socketcan', channel='can1', bitrate=500000)
+   network.connect(bustype='socketcan_ctypes', channel='can0', bitrate=bitrate)
    network.add_node(node)
 
    # Send NMT start to all nodes
