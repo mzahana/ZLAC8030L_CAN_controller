@@ -122,7 +122,7 @@ class MotorController:
             node.tpdo[1].wait_for_reception()
             logging.info("State of node {} = {}".format(node_id,node.state))
             
-            logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
+            #logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
             
       except Exception as e:
          exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -185,7 +185,7 @@ class MotorController:
                raise Exception("Setting NMT [PreOperation] failed for Node ID {}".format(node_id)) 
             return
 
-   def setTPDO(self, node_id=1, pdo_id=1):
+   def setTPDO(self, node_id=1, pdo_id=1, var2beMapped=['Current speed', 'Actual position']):
       """Sets the TPDO mapping"""
       logging.info("Setting up TPDO {} of node {}".format(pdo_id, node_id))
       node = self._network[node_id]
@@ -193,11 +193,12 @@ class MotorController:
          # Read PDO configuration from node
          node.tpdo.read()
          
-         # Re-map TxPDO1
+         # Re-map TxPDO_id
          node.tpdo[pdo_id].clear()
-         node.tpdo[pdo_id].add_variable('StatusWord')
-         node.tpdo[pdo_id].add_variable('Current Speed')
-         node.tpdo[pdo_id].add_variable('Mode of operation display')
+         #node.tpdo[pdo_id].add_variable('StatusWord')
+         node.tpdo[pdo_id].add_variable(var2beMapped[0])   # in 0.1 rpm
+         node.tpdo[pdo_id].add_variable(var2beMapped[1]) # in encoder counts
+         #node.tpdo[pdo_id].add_variable('Mode of operation display')
          node.tpdo[pdo_id].trans_type = 1
          node.tpdo[pdo_id].event_timer = 0
          node.tpdo[pdo_id].enabled = True
@@ -327,11 +328,12 @@ class MotorController:
       @return vel Velocity in m/s. Raises an exception on error
       """
       # Sanity checks
-      # TODO Needs implementation
+      self._checkNodeID(node_id=node_id)
+      # TODO Needs testing for scaling factor 
       #actual_speed = self._network[node_id].sdo['Current Speed']
       node = self._network[node_id]
       node.tpdo[1].wait_for_reception()
-      speed = node.tpdo[1]['Current Speed'].phys
+      speed = node.tpdo[1]['Current speed'].phys
       return speed
 
    def getEncoder(self, node_id):
@@ -347,9 +349,13 @@ class MotorController:
       @return enc Encoder value. Raises an exception on error
       """
       # Sanity checks
-      # TODO Needs implementation
-      pass
-
+      self._checkNodeID(node_id=node_id)
+      # TODO Needs testing for scaling factor 
+      node = self._network[node_id]
+      node.tpdo[1].wait_for_reception()
+      enc = node.tpdo[1]['Actual position'].phys
+      return enc
+      
    def setTargetVelocity(self, node_id, vel=0.0):
       """
       Sends target velocity value of a particular node. Raises exception on failures

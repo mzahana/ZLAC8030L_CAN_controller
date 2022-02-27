@@ -1210,7 +1210,7 @@ PDOMapping=1
 ObjFlags=0x0
 
 [6064]
-ParameterName=actual position
+ParameterName=Actual position
 ObjectType=0x7
 DataType=0x0004
 AccessType=ro
@@ -1219,7 +1219,7 @@ PDOMapping=1
 ObjFlags=0x0
 
 [606C]
-ParameterName=Current Speed
+ParameterName=Current speed
 ObjectType=0x7
 DataType=0x0004
 AccessType=rw
@@ -1228,7 +1228,7 @@ PDOMapping=0
 ObjFlags=0x0
 
 [607A]
-ParameterName=Target Position
+ParameterName=Target position
 ObjectType=0x7
 DataType=0x0004
 AccessType=rw
