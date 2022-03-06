@@ -25,40 +25,38 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 """
-@brief This is a dummy test script.
+@brief This is a test script for requesting object dictionary entries from a node.
 """
 
-import logging
-import  ZLAC8030L_CAN_controller.canopen_controller
-from ZLAC8030L_CAN_controller.canopen_controller import MotorController
-import time
+import canopen
+import os
+
+bitrate = 500000
+#Set CAN0 speed to 500K bps
+# os.system('sudo ifconfig can0 down')
+# os.system('sudo ip link set can0 type can bitrate {}'.format(bitrate))
+# os.system('sudo ifconfig can0 up')
 
 node_id = 3
+eds_file = 'eds/ZLAC8030L-V1.0.eds'
+obj_dict_id = 0x1018
+obj_id2 = 0x1000
+
 def main():
-   print("This is the dummy_test.py script. Nothing to do!!! \n")
-   obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
+   network = canopen.Network()
+   node = canopen.BaseNode402(node_id, eds_file)
 
-   # Get some velocities
-   t1 = time.time()
-   N = 1500
-   for i in range(N):
-   #   vel =  obj.getVelocity(i)
-   #   logging.info("Curent velocity = {} rpm \n".format(vel))
+   network.connect(bustype='socketcan_ctypes', channel='can0', bitrate=bitrate)
+   network.add_node(node)
 
-     obj.setVelocity(node_id=1, vel=40.)
-     obj.setVelocity(node_id=2, vel=40.)
-     obj.setVelocity(node_id=3, vel=40.)
-     obj.setVelocity(node_id=4, vel=40.)
+   # Send NMT start to all nodes
+   network.send_message(0x0, [0x1, 0])
+   node.nmt.wait_for_heartbeat()
+   assert node.nmt.state == 'OPERATIONAL'
 
-   obj.setVelocity(node_id=1, vel=0.0)
-   obj.setVelocity(node_id=2, vel=0.0)
-   obj.setVelocity(node_id=3, vel=0.0)
-   obj.setVelocity(node_id=4, vel=0.0)
+   #  vednor_id = node.sdo[obj_dict_id][1].raw
 
-
-   # logging.info("Getting 100 velocity readings took {} second(s)\n".format(time.time()-t1))
-
-   obj.disconnectNetwork
+   #  print('Vendor ID [{}] = {} \n'.format(obj_dict_id, vednor_id))
   
 
 if __name__=="__main__":
