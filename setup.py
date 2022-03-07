@@ -28,6 +28,6 @@ setup(
         ]
     },
     install_requires=[
-        "canopen;python_version>='3.6'",
+        "canopen;python_version>='3.6';wrapt==1.12.1",
     ]
 )
