@@ -60,6 +60,9 @@ class MotorController:
       self._bitrate = bitrate
       self._node_ids = node_ids
 
+      # RPM scaler to be multiplied tby the feedback (current) velocity [rpm]
+      self._rpm_scaler = 0.1
+
       if eds_file is None:
          raise Exception("eds_file can't be None, please provide valid eds file path!")
 
@@ -339,7 +342,7 @@ class MotorController:
          node = self._network[node_id]
          node.tpdo[1].wait_for_reception()
          speed = node.tpdo[1]['Current speed'].phys
-         return speed
+         return speed * self._rpm_scaler
       except Exception as e:
          logging.error("Could not get velocity for node {}. Error: {}".format(node_id, e))
 
