@@ -40,25 +40,28 @@ def main():
 
    # Get some velocities
    t1 = time.time()
-   N = 1500
+   N = 3000
+   obj.setVelocity(node_id=node_id, vel=40.)
    for i in range(N):
-   #   vel =  obj.getVelocity(i)
-   #   logging.info("Curent velocity = {} rpm \n".format(vel))
+     vel =  obj.getVelocity(node_id)
+     enc = obj.getEncoder(node_id)
+     logging.info("Curent velocity = {} rpm \n".format(vel))
+     logging.info("Curent encoder count = {} \n".format(enc))
 
-     obj.setVelocity(node_id=1, vel=40.)
-     obj.setVelocity(node_id=2, vel=40.)
-     obj.setVelocity(node_id=3, vel=40.)
-     obj.setVelocity(node_id=4, vel=40.)
+   #   obj.setVelocity(node_id=1, vel=40.)
+   #   obj.setVelocity(node_id=2, vel=40.)
+   #   obj.setVelocity(node_id=3, vel=40.)
+   #   obj.setVelocity(node_id=4, vel=40.)
 
-   obj.setVelocity(node_id=1, vel=0.0)
-   obj.setVelocity(node_id=2, vel=0.0)
-   obj.setVelocity(node_id=3, vel=0.0)
-   obj.setVelocity(node_id=4, vel=0.0)
+   # obj.setVelocity(node_id=1, vel=0.0)
+   # obj.setVelocity(node_id=2, vel=0.0)
+   # obj.setVelocity(node_id=3, vel=0.0)
+   # obj.setVelocity(node_id=4, vel=0.0)
 
 
    # logging.info("Getting 100 velocity readings took {} second(s)\n".format(time.time()-t1))
 
-   obj.disconnectNetwork()
+   obj.disconnectNetwork
   
 
 if __name__=="__main__":
