@@ -1,3 +1,0 @@
-[console_scripts]
-zlac8030l_dummy_test = tests.dummy_test:main
-
