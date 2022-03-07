@@ -264,7 +264,7 @@ class MotorController:
       @return status Operation status. Raises an exception on error
       """
       # Sanity checks # Needs checking
-      self._checkNodeID(node_id)
+      self.checkNodeID(node_id)
             
       # TODO Needs checking 
       # Read the state of the Statusword
@@ -288,7 +288,7 @@ class MotorController:
       # TODO Needs implementation
       pass
 
-   def _checkNodeID(self, node_id):
+   def checkNodeID(self, node_id):
       if not type(node_id) is int:
          raise Exception("[nodeID_sanity_checks] Node ID {} is not int".format(node_id))
       if node_id < 0 or node_id > 127:
@@ -308,10 +308,14 @@ class MotorController:
       @param node_id Node ID [int]
       @param vel Velocity PRM
       """
-      # Sanity checks
-      self._checkNodeID(node_id)
-      node = self._network[node_id]
-      node.rpdo[1]['Target speed'].phys = vel
+      
+      try:
+         # Sanity checks
+         self.checkNodeID(node_id)
+         node = self._network[node_id]
+         node.rpdo[1]['Target speed'].phys = vel
+      except Exception as e:
+         logging.error("Could not set velocity for node {}. Error: ".format(node_id, e))
 
 
 
@@ -327,14 +331,17 @@ class MotorController:
       --
       @return vel Velocity in m/s. Raises an exception on error
       """
-      # Sanity checks
-      self._checkNodeID(node_id=node_id)
-      # TODO Needs testing for scaling factor 
-      #actual_speed = self._network[node_id].sdo['Current Speed']
-      node = self._network[node_id]
-      node.tpdo[1].wait_for_reception()
-      speed = node.tpdo[1]['Current speed'].phys
-      return speed
+      try:
+         # Sanity checks
+         self.checkNodeID(node_id=node_id)
+         # TODO Needs testing for scaling factor 
+         #actual_speed = self._network[node_id].sdo['Current Speed']
+         node = self._network[node_id]
+         node.tpdo[1].wait_for_reception()
+         speed = node.tpdo[1]['Current speed'].phys
+         return speed
+      except Exception as e:
+         logging.error("Could not get velocity for node {}. Error: {}".format(node_id, e))
 
    def getEncoder(self, node_id):
       """
@@ -348,26 +355,16 @@ class MotorController:
       --
       @return enc Encoder value. Raises an exception on error
       """
-      # Sanity checks
-      self._checkNodeID(node_id=node_id)
-      # TODO Needs testing for scaling factor 
-      node = self._network[node_id]
-      node.tpdo[1].wait_for_reception()
-      enc = node.tpdo[1]['Actual position'].phys
-      return enc
-      
-   def setTargetVelocity(self, node_id, vel=0.0):
-      """
-      Sends target velocity value of a particular node. Raises exception on failures
-
-      Parameters
-      --
-      @param node_id Node ID [int]
-      @param vel Velocity value [what is the type?]
-      """
-      # Sanity checks
-      # TODO Needs implementation
-      pass
+      try:
+         # Sanity checks
+         self.checkNodeID(node_id=node_id)
+         # TODO Needs testing for scaling factor 
+         node = self._network[node_id]
+         node.tpdo[1].wait_for_reception()
+         enc = node.tpdo[1]['Actual position'].phys
+         return enc
+      except Exception as e:
+         logging.error("Could not get encoder position for node {}. Error: {}".format(node_id, e))
 
    def EStop(self):
       """Emergency STOP"""
