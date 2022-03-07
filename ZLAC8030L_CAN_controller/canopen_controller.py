@@ -32,7 +32,8 @@ import time
 import canopen
 from canopen.profiles.p402 import BaseNode402
 import time
-#from scipy.fftpack import idstn
+
+# TODO get & report driver errors
 
 # Set logging level. logging.DEBUG will log/print all messages
 logging.basicConfig(level=logging.INFO)

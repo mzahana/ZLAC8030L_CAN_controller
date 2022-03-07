@@ -58,7 +58,7 @@ def main():
 
    # logging.info("Getting 100 velocity readings took {} second(s)\n".format(time.time()-t1))
 
-   obj.disconnectNetwork
+   obj.disconnectNetwork()
   
 
 if __name__=="__main__":
