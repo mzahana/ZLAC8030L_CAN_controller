@@ -29,7 +29,7 @@ setup(
     },
     install_requires=[
         "canopen==1.1.0;python_version<='2.7'",
-        "python-can==3.3.0",
+        "python-can==3.0.0",
         "wrapt==1.10.11",
         "setuptools==39.2.0"
     ]
