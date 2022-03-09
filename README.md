@@ -11,7 +11,7 @@ python setup.py develop --user
 ```
 
 See the remaining prerequisites in the `requirements.txt` file.
-This branch `python2` is suitable for Python 2.7, and specific Python
+This branch `python2` is suitable for Python 2.7
 
 # Installation
 After installing the custom `canopen` version as mentioned above, go ahead and install this packge.
