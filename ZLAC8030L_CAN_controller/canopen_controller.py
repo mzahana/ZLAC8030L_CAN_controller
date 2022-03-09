@@ -123,6 +123,7 @@ class MotorController:
             node.state = 'READY TO SWITCH ON'
             node.state = 'SWITCHED ON'
             node.state = 'OPERATION ENABLED'
+            assert node.state == 'OPERATION ENABLED'
             node.tpdo[1].wait_for_reception()
             logging.info("State of node {} = {}".format(node_id,node.state))
             
