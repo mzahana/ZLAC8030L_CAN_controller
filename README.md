@@ -10,7 +10,7 @@ git checkout python2
 python setup.py develop --user
 ```
 
-See the remaingin prerequisites in the `requirements.txt` file.
+See the remaining prerequisites in the `requirements.txt` file.
 This branch `python2` is suitable for Python 2.7, and specific Python
 
 # Installation
