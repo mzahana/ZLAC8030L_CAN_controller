@@ -1,2 +1,4 @@
 ZLAC8030L_CAN_controller/__pycache__/
 ZLAC8030L_CAN_controller.egg-info/
+ZLAC8030L_CAN_controller/__init__.pyc
+ZLAC8030L_CAN_controller/canopen_controller.pyc
