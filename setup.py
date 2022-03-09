@@ -24,7 +24,7 @@ setup(
     packages=find_packages(exclude=('tests', 'docs')),
     entry_points={
         'console_scripts': [
-            'zlac8030l_dummy_test=tests.dummy_test:main',
+            'zlac8030l_speed_test=tests.speed_test:main',
         ]
     },
     install_requires=[
