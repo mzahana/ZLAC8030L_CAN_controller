@@ -24,6 +24,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+from sqlite3 import Timestamp
 import sys
 import os
 import logging
@@ -63,6 +64,11 @@ class MotorController:
 
       # RPM scaler to be multiplied tby the feedback (current) velocity [rpm]
       self._rpm_scaler = 0.1
+
+      # Velocity dictionary, for all nodes
+      self._vel_dict= {}
+      # Encoder dictionary, for all nodes
+      self._enc_dict= {}
 
       if eds_file is None:
          raise Exception("eds_file can't be None, please provide valid eds file path!")
@@ -207,6 +213,7 @@ class MotorController:
          node.tpdo[pdo_id].trans_type = 1
          node.tpdo[pdo_id].event_timer = 0
          node.tpdo[pdo_id].enabled = True
+         node.tpdo[pdo_id].add_callback(self.pdoCallback)
          # Save new PDO configuration to node
          node.tpdo.save() # node must be in PRE-OPERATIONAL NMT state
       except Exception as e:
@@ -324,9 +331,33 @@ class MotorController:
 
 
 
+   # def getVelocity(self, node_id):
+   #    """
+   #    Gets velocity value of a particular node
+
+   #    Parameters
+   #    --
+   #    @param node_id Node ID [int]
+
+   #    Returns
+   #    --
+   #    @return vel Velocity in rpm. Raises an exception on error
+   #    """
+   #    try:
+   #       # Sanity checks
+   #       self.checkNodeID(node_id=node_id)
+   #       # TODO Needs testing for scaling factor 
+   #       #actual_speed = self._network[node_id].sdo['Current Speed']
+   #       node = self._network[node_id]
+   #       node.tpdo[1].wait_for_reception()
+   #       speed = node.tpdo[1]['Current speed'].phys
+   #       return speed * self._rpm_scaler
+   #    except Exception as e:
+   #       logging.error("Could not get velocity for node {}. Error: {}".format(node_id, e))
+
    def getVelocity(self, node_id):
       """
-      Gets velocity value of a particular node
+      Returns the current speed stored in self._vel_dict[node_id]
 
       Parameters
       --
@@ -334,19 +365,35 @@ class MotorController:
 
       Returns
       --
-      @return vel Velocity in m/s. Raises an exception on error
+      @return vel Velocity dictionary {'timestamp': seconds, 'value': rpm}
       """
-      try:
-         # Sanity checks
-         self.checkNodeID(node_id=node_id)
-         # TODO Needs testing for scaling factor 
-         #actual_speed = self._network[node_id].sdo['Current Speed']
-         node = self._network[node_id]
-         node.tpdo[1].wait_for_reception()
-         speed = node.tpdo[1]['Current speed'].phys
-         return speed * self._rpm_scaler
-      except Exception as e:
-         logging.error("Could not get velocity for node {}. Error: {}".format(node_id, e))
+      # Sanity checks
+      self.checkNodeID(node_id=node_id)
+      
+      return self._vel_dict[node_id]
+
+   # def getEncoder(self, node_id):
+   #    """
+   #    Gets encoder value of a particular node
+
+   #    Parameters
+   #    --
+   #    @param node_id Node ID [int]
+
+   #    Returns
+   #    --
+   #    @return enc Encoder value. Raises an exception on error
+   #    """
+   #    try:
+   #       # Sanity checks
+   #       self.checkNodeID(node_id=node_id)
+   #       # TODO Needs testing for scaling factor 
+   #       node = self._network[node_id]
+   #       node.tpdo[1].wait_for_reception()
+   #       enc = node.tpdo[1]['Actual position'].phys
+   #       return enc
+   #    except Exception as e:
+   #       logging.error("Could not get encoder position for node {}. Error: {}".format(node_id, e))
 
    def getEncoder(self, node_id):
       """
@@ -358,20 +405,27 @@ class MotorController:
 
       Returns
       --
-      @return enc Encoder value. Raises an exception on error
+      @return enc Encoder dictionary {'timestamp': seconds, 'value': counts}
       """
-      try:
-         # Sanity checks
-         self.checkNodeID(node_id=node_id)
-         # TODO Needs testing for scaling factor 
-         node = self._network[node_id]
-         node.tpdo[1].wait_for_reception()
-         enc = node.tpdo[1]['Actual position'].phys
-         return enc
-      except Exception as e:
-         logging.error("Could not get encoder position for node {}. Error: {}".format(node_id, e))
+      # Sanity checks
+      self.checkNodeID(node_id=node_id)
+      
+      return self._enc_dict[node_id]
 
    def EStop(self):
       """Emergency STOP"""
       pass
+
+   def pdoCallback(self, msg):
+      try:
+         node_id = msg.cob_id & 0x7F
+         for var in msg:
+            if var.name == 'Current speed':
+               self._vel_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw * self._rpm_scaler}
+               logging.debug('Speed of node {} = {}'.format(node_id, self._vel_dict[node_id]))
+            if var.name == 'Actual position':
+               self._enc_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+               logging.debug('Encoder counts of node {} = {}'.format(node_id, self._enc_dict[node_id]))
+      except Exception as e:
+         logging.error("Error in velocity PDO callback of node = {}. Error: {}".format(node_id, e))
    
