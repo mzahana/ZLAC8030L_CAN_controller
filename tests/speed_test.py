@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 """
-@brief This is a dummy test script.
+@brief This script tests setting and getting speed from a a specific CAN node.
 """
 
 import logging
@@ -35,7 +35,9 @@ import time
 
 node_id = 3
 def main():
-   print("This is the dummy_test.py script. Nothing to do!!! \n")
+   print("This scripts tests speed setting \n")
+   time.sleep(1)
+   
    obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
 
    test_time = 5.0 # seconds
