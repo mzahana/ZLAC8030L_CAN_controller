@@ -38,15 +38,27 @@ def main():
    print("This is the dummy_test.py script. Nothing to do!!! \n")
    obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
 
-   # Get some velocities
+   test_time = 5.0 # seconds
+   dt = 0.01 # time step
+   N = int(test_time/dt)
+   
+   target_speed = 50.0 # rpm
+   obj.setVelocity(node_id=node_id, vel=target_speed)
+
    t1 = time.time()
-   N = 3000
-   obj.setVelocity(node_id=node_id, vel=40.)
    for i in range(N):
-     vel =  obj.getVelocity(node_id)
-     enc = obj.getEncoder(node_id)
-     logging.info("Curent velocity = {} rpm \n".format(vel))
-     logging.info("Curent encoder count = {} \n".format(enc))
+     vel_dict =  obj.getVelocity(node_id)
+     t = vel_dict['timestamp'] # seconds
+     speed = vel_dict['value'] # rpm
+
+     enc_dict = obj.getEncoder(node_id=node_id)
+     t = enc_dict['timestamp'] # seconds
+     counts = enc_dict['value'] # counts
+
+     logging.info("Curent velocity = {} rpm \n".format(speed))
+     logging.info("Curent encoder count = {} \n".format(counts))
+
+     time.sleep(dt)
 
    #   obj.setVelocity(node_id=1, vel=40.)
    #   obj.setVelocity(node_id=2, vel=40.)
@@ -59,9 +71,9 @@ def main():
    # obj.setVelocity(node_id=4, vel=0.0)
 
 
-   # logging.info("Getting 100 velocity readings took {} second(s)\n".format(time.time()-t1))
+   logging.info("Getting {} velocity readings took {} second(s)\n".format(N, time.time()-t1))
 
-   obj.disconnectNetwork
+   obj.disconnectNetwork()
   
 
 if __name__=="__main__":
