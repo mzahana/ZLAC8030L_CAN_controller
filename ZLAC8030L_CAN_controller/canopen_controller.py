@@ -24,7 +24,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from sqlite3 import Timestamp
 import sys
 import os
 import logging
@@ -34,10 +33,12 @@ import canopen
 from canopen.profiles.p402 import BaseNode402
 import time
 
+from numpy import var
+
 # TODO get & report driver errors
 
 # Set logging level. logging.DEBUG will log/print all messages
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARN)
 
 class MotorController:
    """MotorController
@@ -69,21 +70,27 @@ class MotorController:
       self._vel_dict= {}
       # Encoder dictionary, for all nodes
       self._enc_dict= {}
+      # DC Voltage read by each node
+      self._voltage_dict= {}
 
       if eds_file is None:
          raise Exception("eds_file can't be None, please provide valid eds file path!")
 
       # Following the eaxmple in https://github.com/christiansandberg/canopen/blob/master/examples/simple_ds402_node.py
       # Try to connect
+      t0 = time.time() # to calculate total initialization time!
       try:
          self._network.connect(bustype=self._bustype, channel=self._channel, bitrate=self._bitrate)
          self._network.check()
 
          # Detecet connected nodes
          # This will attempt to read an SDO from nodes 1 - 127
+         t1 = time.time()
          self._network.scanner.search()
+         dt = time.time() - t1
          # We may need to wait a short while here to allow all nodes to respond
-         logging.info('Available nodes: %s', self._network.scanner.nodes)
+         logging.warn('Available nodes: %s', self._network.scanner.nodes)
+         logging.info('Took : %s seconds to search for available nodes', dt)
                   
          if node_ids is not None: # User specified the expected nodes that should be available
             for node_id in node_ids:
@@ -108,15 +115,21 @@ class MotorController:
             node = canopen.BaseNode402(node_id, eds_file) # This assumes that we can use the same eds file for all motor drivers
             self._network.add_node(node)
             # Reset communication
-            node.nmt.state = 'RESET COMMUNICATION'
-            node.nmt.wait_for_bootup(15)
-            assert node.nmt.state == 'PRE-OPERATIONAL'
+            # node.nmt.state = 'RESET COMMUNICATION'
+            # node.nmt.wait_for_bootup(15)
+            # assert node.nmt.state == 'PRE-OPERATIONAL'
             
-            logging.info('node {} state = {}'.format(node_id, node.nmt.state))
-            node.load_configuration()
-            # node.setup_402_state_machine() # This is problematic. It messes theings up!!!
+            # logging.info('node {} state = {}'.format(node_id, node.nmt.state))
+            # node.load_configuration()
 
-            self.setTPDO(node_id=node_id, pdo_id=1)
+            ## node.setup_402_state_machine() # This is problematic. It messes things up!!!
+
+            node.nmt.state = 'PRE-OPERATIONAL' # Required before setting PDOs
+            assert node.nmt.state == 'PRE-OPERATIONAL'
+            self.setTPDO(node_id=node_id, pdo_id=1, var2beMapped=['Current speed', 'DCvoltage'], callback=self.pdoCallback)
+            # Adding the DCvoltage in a separate TPDO as it starts to complain about max PDO size
+            #  when adding more than 2 ODs
+            # self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['DCvoltage'])
             self.setRPDO(node_id=node_id, pdo_id=1)
             
 
@@ -125,15 +138,17 @@ class MotorController:
             assert node.nmt.state == 'OPERATIONAL'
 
             logging.info("Enabling operation mode for node {}".format(node_id))
-            node.state = 'SWITCH ON DISABLED'
-            node.state = 'READY TO SWITCH ON'
-            node.state = 'SWITCHED ON'
+            # node.state = 'SWITCH ON DISABLED'
+            # node.state = 'READY TO SWITCH ON'
+            # node.state = 'SWITCHED ON'
             node.state = 'OPERATION ENABLED'
             assert node.state == 'OPERATION ENABLED'
-            node.tpdo[1].wait_for_reception()
-            logging.info("State of node {} = {}".format(node_id,node.state))
+            # node.tpdo[1].wait_for_reception()
+            # logging.info("State of node {} = {}".format(node_id,node.state))
             
             #logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
+
+         logging.warn("Total initialization time  = {} seconds".format(time.time() - t0))
             
       except Exception as e:
          exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -196,7 +211,7 @@ class MotorController:
                raise Exception("Setting NMT [PreOperation] failed for Node ID {}".format(node_id)) 
             return
 
-   def setTPDO(self, node_id=1, pdo_id=1, var2beMapped=['Current speed', 'Actual position']):
+   def setTPDO(self, node_id=1, pdo_id=1, var2beMapped=['Current speed', 'Actual position'], callback=None):
       """Sets the TPDO mapping"""
       logging.info("Setting up TPDO {} of node {}".format(pdo_id, node_id))
       node = self._network[node_id]
@@ -207,13 +222,18 @@ class MotorController:
          # Re-map TxPDO_id
          node.tpdo[pdo_id].clear()
          #node.tpdo[pdo_id].add_variable('StatusWord')
-         node.tpdo[pdo_id].add_variable(var2beMapped[0])   # in 0.1 rpm
-         node.tpdo[pdo_id].add_variable(var2beMapped[1]) # in encoder counts
-         #node.tpdo[pdo_id].add_variable('Mode of operation display')
+
+         for var in var2beMapped:
+            # current speed is in 0.1 rpm
+            # actual position is in encoder counts
+            node.tpdo[pdo_id].add_variable(var)
+
          node.tpdo[pdo_id].trans_type = 1
          node.tpdo[pdo_id].event_timer = 0
          node.tpdo[pdo_id].enabled = True
-         node.tpdo[pdo_id].add_callback(self.pdoCallback)
+         if callback is not None:
+            node.tpdo[pdo_id].add_callback(callback)
+         # node.tpdo[pdo_id].add_callback(self.pdoCallback)
          # Save new PDO configuration to node
          node.tpdo.save() # node must be in PRE-OPERATIONAL NMT state
       except Exception as e:
@@ -412,6 +432,23 @@ class MotorController:
       
       return self._enc_dict[node_id]
 
+   def getVoltage(self, node_id):
+      """
+      Gets DC voltage value of a particular node
+
+      Parameters
+      --
+      @param node_id Node ID [int]
+
+      Returns
+      --
+      @return DC voltage dictionary {'timestamp': seconds, 'value': volt}
+      """
+      # Sanity checks
+      self.checkNodeID(node_id=node_id)
+      
+      return self._voltage_dict[node_id]
+
    def EStop(self):
       """Emergency STOP"""
       pass
@@ -426,6 +463,9 @@ class MotorController:
             if var.name == 'Actual position':
                self._enc_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('Encoder counts of node {} = {}'.format(node_id, self._enc_dict[node_id]))
+            if var.name == 'DCvoltage':
+               self._voltage_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+               logging.debug('DC voltage read by node {} = {}'.format(node_id, self._voltage_dict[node_id]))
       except Exception as e:
-         logging.error("Error in velocity PDO callback of node = {}. Error: {}".format(node_id, e))
+         logging.error("Error in  TPDO1 callback of node = {}. Error: {}".format(node_id, e))
    

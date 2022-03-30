@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 """
-@brief This script tests setting and getting speed from a a specific CAN node.
+@brief This script tests getting the DC voltage of a particular node
 """
 
 import logging
@@ -33,50 +33,24 @@ import  ZLAC8030L_CAN_controller.canopen_controller
 from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 import time
 
-logging.basicConfig(level=logging.INFO)
-node_id = 1
+node_ids = [1,2,3,4]
 def main():
-   print("This scripts tests speed setting \n")
-   time.sleep(1)
-   
-   obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
+    logging.info("This scripts tests getting the DC voltage of a particular node \n")
+    time.sleep(1)
 
-   test_time = 5.0 # seconds
-   dt = 0.01 # time step
-   N = int(test_time/dt)
-   
-   target_speed = 50.0 # rpm
-   obj.setVelocity(node_id=node_id, vel=target_speed)
+    logging.info("Instantiating MotorController object ")
+    obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
 
-   t1 = time.time()
-   for i in range(N):
-     vel_dict =  obj.getVelocity(node_id)
-     t = vel_dict['timestamp'] # seconds
-     speed = vel_dict['value'] # rpm
+    for i in range(3):
+        for node in node_ids:
+            node=int(node)
 
-     enc_dict = obj.getEncoder(node_id=node_id)
-     t = enc_dict['timestamp'] # seconds
-     counts = enc_dict['value'] # counts
+            v = obj.getVelocity(node)
+            logging.warn("Voltage read by node {} = {} V".format(node, v))
+        time.sleep(1)
 
-     logging.info("Curent velocity = {} rpm \n".format(speed))
-     logging.info("Curent encoder count = {} \n".format(counts))
-
-     time.sleep(dt)
-
-   #   obj.setVelocity(node_id=1, vel=40.)
-   #   obj.setVelocity(node_id=2, vel=40.)
-   #   obj.setVelocity(node_id=3, vel=40.)
-   #   obj.setVelocity(node_id=4, vel=40.)
-
-   # obj.setVelocity(node_id=1, vel=0.0)
-   # obj.setVelocity(node_id=2, vel=0.0)
-   # obj.setVelocity(node_id=3, vel=0.0)
-   # obj.setVelocity(node_id=4, vel=0.0)
-
-
-   logging.info("Getting {} velocity readings took {} second(s)\n".format(N, time.time()-t1))
-
-   obj.disconnectNetwork()
+    logging.info("Done instantiating. Disconnecting CAN network")
+    obj.disconnectNetwork()
   
 
 if __name__=="__main__":
