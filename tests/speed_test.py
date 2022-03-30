@@ -34,47 +34,59 @@ from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 import time
 
 logging.basicConfig(level=logging.INFO)
-node_id = 1
+node_id = [1,2,3,4]
 def main():
    print("This scripts tests speed setting \n")
    time.sleep(1)
    
    obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
 
-   test_time = 5.0 # seconds
+   test_time = 3.0 # seconds
    dt = 0.01 # time step
    N = int(test_time/dt)
    
    target_speed = 50.0 # rpm
-   obj.setVelocity(node_id=node_id, vel=target_speed)
+   
 
    t1 = time.time()
-   for i in range(N):
-     vel_dict =  obj.getVelocity(node_id)
-     t = vel_dict['timestamp'] # seconds
-     speed = vel_dict['value'] # rpm
+   for node in node_id:
+      obj.setVelocity(node_id=node, vel=target_speed)
+      for i in range(N):
+         try:
+            vel_dict =  obj.getVelocity(node)
+            t = vel_dict['timestamp'] # seconds
+            speed = vel_dict['value'] # rpm
+            logging.warn("Node {} - Curent velocity = {} rpm \n".format(node, speed))
+         except:
+            logging.error("Could not get speed of node {}".format(node))
 
-     enc_dict = obj.getEncoder(node_id=node_id)
-     t = enc_dict['timestamp'] # seconds
-     counts = enc_dict['value'] # counts
+         try:
+            enc_dict = obj.getEncoder(node_id=node)
+            t = enc_dict['timestamp'] # seconds
+            counts = enc_dict['value'] # counts
+            logging.warn("Node {} - Curent encoder count = {} \n".format(node, counts))
+         except:
+            logging.error("Could not get ecnoder counts of node {}".format(node))
 
-     logging.info("Curent velocity = {} rpm \n".format(speed))
-     logging.info("Curent encoder count = {} \n".format(counts))
+         try:
+            volt_dict = obj.getVoltage(node)
+            t = volt_dict['timestamp'] # seconds
+            volts = volt_dict['value'] # volts
+         except:
+            logging.error("Could not get DC voltage of node {}".format(node))
 
-     time.sleep(dt)
-
-   #   obj.setVelocity(node_id=1, vel=40.)
-   #   obj.setVelocity(node_id=2, vel=40.)
-   #   obj.setVelocity(node_id=3, vel=40.)
-   #   obj.setVelocity(node_id=4, vel=40.)
-
-   # obj.setVelocity(node_id=1, vel=0.0)
-   # obj.setVelocity(node_id=2, vel=0.0)
-   # obj.setVelocity(node_id=3, vel=0.0)
-   # obj.setVelocity(node_id=4, vel=0.0)
+         try:
+            err_dict = obj.getErrorCode(node_id=node)
+            t = err_dict['timestamp'] # seconds
+            code = err_dict['value'] # code
+            logging.warn("Node {} - Curent error code = {} \n".format(node, code))
+         except:
+            logging.error("Could not get error code of node {}".format(node))
 
 
-   logging.info("Getting {} velocity readings took {} second(s)\n".format(N, time.time()-t1))
+         time.sleep(dt)
+      obj.setVelocity(node_id=node, vel=0)
+
 
    obj.disconnectNetwork()
   

@@ -72,6 +72,8 @@ class MotorController:
       self._enc_dict= {}
       # DC Voltage read by each node
       self._voltage_dict= {}
+      # Error Register
+      self._error_dict = {}
 
       if eds_file is None:
          raise Exception("eds_file can't be None, please provide valid eds file path!")
@@ -108,6 +110,8 @@ class MotorController:
          # Transmit SYNC every 100 ms
          logging.info("Starting network Sync\n")
          self._network.sync.start(sync_dt)
+
+         # self.resetComms()
          
          # Add CANopen nodes to the network
          # This will add the detect nodes to the network and set them up with corresponding Object Dictionaries
@@ -125,8 +129,12 @@ class MotorController:
             ## node.setup_402_state_machine() # This is problematic. It messes things up!!!
 
             node.nmt.state = 'PRE-OPERATIONAL' # Required before setting PDOs
+            time.sleep(0.1)
             assert node.nmt.state == 'PRE-OPERATIONAL'
-            self.setTPDO(node_id=node_id, pdo_id=1, var2beMapped=['Current speed', 'DCvoltage'], callback=self.pdoCallback)
+            self.clearTPDO(node=node_id, pdo_id=[1,2,3,4])
+            self.setTPDO(node_id=node_id, pdo_id=1, callback=self.pdoCallback)
+            self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['Error Code'])
+
             # Adding the DCvoltage in a separate TPDO as it starts to complain about max PDO size
             #  when adding more than 2 ODs
             # self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['DCvoltage'])
@@ -135,6 +143,7 @@ class MotorController:
 
             logging.info("Setting OPERATIONAL NMT state of node {}".format(node_id))
             node.nmt.state = 'OPERATIONAL'
+            time.sleep(0.1)
             assert node.nmt.state == 'OPERATIONAL'
 
             logging.info("Enabling operation mode for node {}".format(node_id))
@@ -142,12 +151,14 @@ class MotorController:
             # node.state = 'READY TO SWITCH ON'
             # node.state = 'SWITCHED ON'
             node.state = 'OPERATION ENABLED'
+            time.sleep(0.1)
             assert node.state == 'OPERATION ENABLED'
             # node.tpdo[1].wait_for_reception()
             # logging.info("State of node {} = {}".format(node_id,node.state))
             
             #logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
 
+         time.sleep(0.5)
          logging.warn("Total initialization time  = {} seconds".format(time.time() - t0))
             
       except Exception as e:
@@ -175,6 +186,11 @@ class MotorController:
             self._network.sync.stop()
             self._network.disconnect()
             return
+
+   def resetComms(self, wait_time=5):
+      """Reset network status"""
+      self._network.nmt.state = 'RESET COMMUNICATION'
+      time.sleep(wait_time)
 
    def setNMTPreOperation(self, node_ids=None):
       """
@@ -210,6 +226,24 @@ class MotorController:
                logging.error("Setting NMT [PreOperation] failed for Node ID %s",node_id)
                raise Exception("Setting NMT [PreOperation] failed for Node ID {}".format(node_id)) 
             return
+
+   def clearTPDO(self, node=1, pdo_id=[1]):
+      """Clear TPDO configuration
+
+      Params
+      --
+      @param node Node ID
+      @param pdo_id List of TPDO IDs
+      """
+      node = self._network[node]
+      try:
+         node.tpdo.read()
+         for id in pdo_id:
+            node.tpdo[id].clear()
+            node.tpdo[id].enabled = False
+         node.tpdo.save()
+      except Exception as e:
+         logging.error("Could not clear TPDO {}. Error {}".format(pdo_id, e))
 
    def setTPDO(self, node_id=1, pdo_id=1, var2beMapped=['Current speed', 'Actual position'], callback=None):
       """Sets the TPDO mapping"""
@@ -449,6 +483,23 @@ class MotorController:
       
       return self._voltage_dict[node_id]
 
+   def getErrorCode(self, node_id):
+      """
+      Gets error code of a particular node
+
+      Parameters
+      --
+      @param node_id Node ID [int]
+
+      Returns
+      --
+      @return Error code dictionary {'timestamp': seconds, 'value': code}
+      """
+      # Sanity checks
+      self.checkNodeID(node_id=node_id)
+      
+      return self._error_dict[node_id]
+
    def EStop(self):
       """Emergency STOP"""
       pass
@@ -466,6 +517,10 @@ class MotorController:
             if var.name == 'DCvoltage':
                self._voltage_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('DC voltage read by node {} = {}'.format(node_id, self._voltage_dict[node_id]))
+            if var.name == 'Error Code':
+               self._error_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+               logging.debug('Error register of node {} = {}'.format(node_id, self._error_dict[node_id]))
+               
       except Exception as e:
          logging.error("Error in  TPDO1 callback of node = {}. Error: {}".format(node_id, e))
    
