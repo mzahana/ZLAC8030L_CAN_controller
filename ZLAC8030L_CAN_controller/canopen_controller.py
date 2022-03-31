@@ -550,7 +550,7 @@ class MotorController:
                self._error_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('Error register of node {} = {}'.format(node_id, self._error_dict[node_id]))
             if var.name == 'Motor current':
-               self._current_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+               self._current_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw*0.1}
                logging.debug('Motor current of node {} = {}'.format(node_id, self._current_dict[node_id]))
                
       except Exception as e:
