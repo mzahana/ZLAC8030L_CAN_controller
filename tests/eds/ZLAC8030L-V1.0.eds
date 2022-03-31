@@ -117,7 +117,7 @@ PDOMapping=0
 ObjFlags=0
 
 [OptionalObjects]
-SupportedObjects=43
+SupportedObjects=44
 1=0x1005
 2=0x1009
 3=0x100A
@@ -161,6 +161,7 @@ SupportedObjects=43
 41=0x6099
 42=0x609A
 43=0x60FF
+44=0x6077
 
 [1005]
 ParameterName=SYNC COB ID
@@ -1341,8 +1342,17 @@ DefaultValue=120
 PDOMapping=0
 ObjFlags=0x0
 
+[6077]
+ParameterName=Motor current
+ObjectType=0x7
+DataType=0x0004
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+ObjFlags=0x0
+
 [ManufacturerObjects]
-SupportedObjects=24
+SupportedObjects=25
 1=0x2000
 2=0x2001
 3=0x2002
@@ -1367,6 +1377,7 @@ SupportedObjects=24
 22=0x204C
 23=0x2069
 24=0x2088
+25=0x2029
 
 [2000]
 ParameterName=Slavenodes
@@ -1648,6 +1659,16 @@ AccessType=ro
 DefaultValue=0
 PDOMapping=0
 ObjFlags=0x0
+
+[2029]
+ParameterName=Battery voltage
+ObjectType=0x7
+DataType=0x0006
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+ObjFlags=0x0
+
 
 [2088]
 ParameterName=Version

@@ -57,31 +57,40 @@ def main():
             t = vel_dict['timestamp'] # seconds
             speed = vel_dict['value'] # rpm
             logging.warn("Node {} - Curent velocity = {} rpm \n".format(node, speed))
-         except:
-            logging.error("Could not get speed of node {}".format(node))
+         except Exception as e:
+            logging.error("Could not get speed of node {}. Error {}".format(node, e))
 
          try:
             enc_dict = obj.getEncoder(node_id=node)
             t = enc_dict['timestamp'] # seconds
             counts = enc_dict['value'] # counts
             logging.warn("Node {} - Curent encoder count = {} \n".format(node, counts))
-         except:
-            logging.error("Could not get ecnoder counts of node {}".format(node))
+         except Exception as e:
+            logging.error("Could not get ecnoder counts of node {}. Error {}".format(node, e))
 
          try:
             volt_dict = obj.getVoltage(node)
             t = volt_dict['timestamp'] # seconds
-            volts = volt_dict['value'] # volts
-         except:
-            logging.error("Could not get DC voltage of node {}".format(node))
+            volts = volt_dict['value']  # volts
+            logging.warn("Node {} - Voltage = {} \n".format(node, volts))
+         except Exception as e:
+            logging.error("Could not get DC voltage of node {}. Error {}".format(node, e))
 
          try:
             err_dict = obj.getErrorCode(node_id=node)
             t = err_dict['timestamp'] # seconds
             code = err_dict['value'] # code
             logging.warn("Node {} - Curent error code = {} \n".format(node, code))
-         except:
-            logging.error("Could not get error code of node {}".format(node))
+         except Exception as e:
+            logging.error("Could not get error code of node {}. Error {}".format(node, e))
+
+         try:
+            curr_dict = obj.getMotorCurrent(node)
+            t = curr_dict['timestamp'] # seconds
+            code = curr_dict['value'] # amps
+            logging.warn("Node {} - Motor current = {} \n".format(node, code))
+         except Exception as e:
+            logging.error("Could not get motor current of node {}. Error {}".format(node, e))
 
 
          time.sleep(dt)

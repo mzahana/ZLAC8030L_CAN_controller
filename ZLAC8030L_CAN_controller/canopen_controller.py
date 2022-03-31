@@ -72,6 +72,8 @@ class MotorController:
       self._enc_dict= {}
       # DC Voltage read by each node
       self._voltage_dict= {}
+      # Motor currents
+      self._current_dict = {}
       # Error Register
       self._error_dict = {}
 
@@ -124,7 +126,7 @@ class MotorController:
             assert node.nmt.state == 'PRE-OPERATIONAL'
             self.clearTPDO(node=node_id, pdo_id=[1,2,3,4])
             self.setTPDO(node_id=node_id, pdo_id=1, callback=self.pdoCallback)
-            self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['Error Code'])
+            self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['Error Code', 'Battery voltage', 'Motor current'])
 
             # Adding the DCvoltage in a separate TPDO as it starts to complain about max PDO size
             #  when adding more than 2 ODs
@@ -153,7 +155,7 @@ class MotorController:
          # This is to avoid flooding the bus before being done witht the configuration
          for id in self._network.scanner.nodes:
             self.startRPDO(node=id, pdo_id=1, dt=0.1)
-            
+
          # Transmit SYNC every 100 ms
          logging.info("Starting network Sync\n")
          self._network.sync.start(sync_dt)
@@ -510,6 +512,23 @@ class MotorController:
       
       return self._error_dict[node_id]
 
+   def getMotorCurrent(self, node_id):
+      """
+      Gets motor current of a particular node
+
+      Parameters
+      --
+      @param node_id Node ID [int]
+
+      Returns
+      --
+      @return Motor current dictionary {'timestamp': seconds, 'value': amps}
+      """
+      # Sanity checks
+      self.checkNodeID(node_id=node_id)
+      
+      return self._current_dict[node_id]
+
    def EStop(self):
       """Emergency STOP"""
       pass
@@ -524,12 +543,15 @@ class MotorController:
             if var.name == 'Actual position':
                self._enc_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('Encoder counts of node {} = {}'.format(node_id, self._enc_dict[node_id]))
-            if var.name == 'DCvoltage':
-               self._voltage_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+            if var.name == 'Battery voltage':
+               self._voltage_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw * 0.01}
                logging.debug('DC voltage read by node {} = {}'.format(node_id, self._voltage_dict[node_id]))
             if var.name == 'Error Code':
                self._error_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('Error register of node {} = {}'.format(node_id, self._error_dict[node_id]))
+            if var.name == 'Motor current':
+               self._current_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
+               logging.debug('Motor current of node {} = {}'.format(node_id, self._current_dict[node_id]))
                
       except Exception as e:
          logging.error("Error in  TPDO1 callback of node = {}. Error: {}".format(node_id, e))
