@@ -107,26 +107,17 @@ class MotorController:
                if not (node_id in self._network.scanner.nodes):
                   logging.error("Node ID %s is not available in %s",node_id, self._network.scanner.nodes)
                   raise Exception("Node ID {} is not available in {}".format(node_id, self._network.scanner.nodes)) 
-         # Transmit SYNC every 100 ms
-         logging.info("Starting network Sync\n")
-         self._network.sync.start(sync_dt)
 
-         # self.resetComms()
          
          # Add CANopen nodes to the network
          # This will add the detect nodes to the network and set them up with corresponding Object Dictionaries
          for node_id in self._network.scanner.nodes:
             node = canopen.BaseNode402(node_id, eds_file) # This assumes that we can use the same eds file for all motor drivers
             self._network.add_node(node)
-            # Reset communication
-            # node.nmt.state = 'RESET COMMUNICATION'
-            # node.nmt.wait_for_bootup(15)
-            # assert node.nmt.state == 'PRE-OPERATIONAL'
             
-            # logging.info('node {} state = {}'.format(node_id, node.nmt.state))
-            # node.load_configuration()
-
-            ## node.setup_402_state_machine() # This is problematic. It messes things up!!!
+            # Reset communication
+            node.nmt.state = 'RESET COMMUNICATION'
+            node.nmt.wait_for_bootup(10)
 
             node.nmt.state = 'PRE-OPERATIONAL' # Required before setting PDOs
             time.sleep(0.1)
@@ -138,6 +129,8 @@ class MotorController:
             # Adding the DCvoltage in a separate TPDO as it starts to complain about max PDO size
             #  when adding more than 2 ODs
             # self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['DCvoltage'])
+
+            # This does not start RPDO transmission. Need to be done later adter configuring all nodes
             self.setRPDO(node_id=node_id, pdo_id=1)
             
 
@@ -147,18 +140,24 @@ class MotorController:
             assert node.nmt.state == 'OPERATIONAL'
 
             logging.info("Enabling operation mode for node {}".format(node_id))
-            # node.state = 'SWITCH ON DISABLED'
-            # node.state = 'READY TO SWITCH ON'
-            # node.state = 'SWITCHED ON'
+            node.state = 'SWITCH ON DISABLED'
+            node.state = 'READY TO SWITCH ON'
+            node.state = 'SWITCHED ON'
             node.state = 'OPERATION ENABLED'
             time.sleep(0.1)
             assert node.state == 'OPERATION ENABLED'
-            # node.tpdo[1].wait_for_reception()
-            # logging.info("State of node {} = {}".format(node_id,node.state))
             
             #logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
 
-         time.sleep(0.5)
+         # Separately start the RPDO transmission.
+         # This is to avoid flooding the bus before being done witht the configuration
+         for id in self._network.scanner.nodes:
+            self.startRPDO(node=id, pdo_id=1, dt=0.1)
+            
+         # Transmit SYNC every 100 ms
+         logging.info("Starting network Sync\n")
+         self._network.sync.start(sync_dt)
+
          logging.warn("Total initialization time  = {} seconds".format(time.time() - t0))
             
       except Exception as e:
@@ -285,9 +284,20 @@ class MotorController:
          node.rpdo.save()
 
          node.rpdo[pdo_id]['Target speed'].phys = 0.0
-         node.rpdo[pdo_id].start(0.1)
+         # Start only after you set all nodes
+         # Otherwise, the bus gets busy and can fail!
+         #node.rpdo[pdo_id].start(0.1)
       except Exception as e:
          logging.error("Could not configure RPDO {} for node {}".format(pdo_id, node_id))
+
+   def startRPDO(self, node=1, pdo_id=1, dt=0.1):
+      """ Start a particular RPDO for a particular node"""
+      logging.info("Starting RPDO {} of node {}".format(pdo_id, node))
+      node = self._network[node]
+      try:
+         node.rpdo[pdo_id].start(dt)
+      except Exception as e:
+         logging.error("Could not start RPDO {} of  node {}. Error: {}".format(pdo_id, node, e))
 
    def enableOperation(self, node_ids):
       """
