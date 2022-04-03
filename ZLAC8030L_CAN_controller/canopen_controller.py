@@ -62,6 +62,7 @@ class MotorController:
       self._bustype = bustype
       self._bitrate = bitrate
       self._node_ids = node_ids
+      self._sync_dt = sync_dt
 
       # RPM scaler to be multiplied tby the feedback (current) velocity [rpm]
       self._rpm_scaler = 0.1
@@ -122,7 +123,6 @@ class MotorController:
             node.nmt.wait_for_bootup(10)
 
             node.nmt.state = 'PRE-OPERATIONAL' # Required before setting PDOs
-            time.sleep(0.1)
             assert node.nmt.state == 'PRE-OPERATIONAL'
             self.clearTPDO(node=node_id, pdo_id=[1,2,3,4])
             self.setTPDO(node_id=node_id, pdo_id=1, callback=self.pdoCallback)
@@ -193,6 +193,55 @@ class MotorController:
       self._network.nmt.state = 'RESET COMMUNICATION'
       time.sleep(wait_time)
 
+   def reset(self):
+      try:
+         # Reset communication
+         for node_id in self._network.scanner.nodes:
+            node =self._network[node_id]
+            # node.state = 'SWITCHED ON'
+            self.clearTPDO(node=node_id, pdo_id=[1,2])
+            self.clearRPDO(node=node_id, pdo_id=[1,2])
+            
+            node.nmt.state = 'RESET COMMUNICATION'
+            node.nmt.wait_for_bootup(10)
+
+            node.nmt.state = 'PRE-OPERATIONAL' # Required before setting PDOs
+            time.sleep(0.1)
+            assert node.nmt.state == 'PRE-OPERATIONAL'
+            
+            self.setTPDO(node_id=node_id, pdo_id=1, callback=self.pdoCallback)
+            self.setTPDO(node_id=node_id, pdo_id=2, callback=self.pdoCallback, var2beMapped=['Error Code', 'Battery voltage', 'Motor current'])
+
+            # This does not start RPDO transmission. Need to be done later adter configuring all nodes
+            self.setRPDO(node_id=node_id, pdo_id=1)
+
+
+            logging.info("Setting OPERATIONAL NMT state of node {}".format(node_id))
+            node.nmt.state = 'OPERATIONAL'
+            time.sleep(0.1)
+            assert node.nmt.state == 'OPERATIONAL'
+
+            logging.info("Enabling operation mode for node {}".format(node_id))
+            node.state = 'SWITCH ON DISABLED'
+            node.state = 'READY TO SWITCH ON'
+            node.state = 'SWITCHED ON'
+            node.state = 'OPERATION ENABLED'
+            time.sleep(0.1)
+            assert node.state == 'OPERATION ENABLED'
+
+         # Separately start the RPDO transmission.
+         # This is to avoid flooding the bus before being done witht the configuration
+         for id in self._network.scanner.nodes:
+            self.startRPDO(node=id, pdo_id=1, dt=0.1)
+
+         # Transmit SYNC every 100 ms
+         logging.info("Starting network Sync\n")
+         self._network.sync.start(self._sync_dt)
+         logging.warn("Reset is successful")
+
+      except Exception as e:
+         logging.error("Could not reset. Error {}".format(e))
+
    def setNMTPreOperation(self, node_ids=None):
       """
       If node_ids=None, this method broadcasts network.nmt.state to 'PRE-OPERATIONAL' for all nodes in the network 
@@ -246,8 +295,35 @@ class MotorController:
       except Exception as e:
          logging.error("Could not clear TPDO {}. Error {}".format(pdo_id, e))
 
+   def clearRPDO(self, node=1, pdo_id=[1]):
+      """Clear/stop RPDO configuration
+
+      Params
+      --
+      @param node Node ID
+      @param pdo_id List of TPDO IDs
+      """
+      node = self._network[node]
+      try:
+         node.rpdo.read()
+         for id in pdo_id:
+            node.rpdo[id].clear()
+            node.rpdo[id].enabled = False
+            node.rpdo[id].stop()
+         node.rpdo.save()
+      except Exception as e:
+         logging.error("Could not clear RPDO {}. Error {}".format(pdo_id, e))
+
    def setTPDO(self, node_id=1, pdo_id=1, var2beMapped=['Current speed', 'Actual position'], callback=None):
-      """Sets the TPDO mapping"""
+      """Sets the TPDO mapping
+      
+      Params
+      --
+      @param node_id CAN node ID [1,127]
+      @pram pdo_id PDO ID {1,2,3,4}
+      @param var2beMapped Mapped object dictionaries
+      @param callback Callback to be called 
+      """
       logging.info("Setting up TPDO {} of node {}".format(pdo_id, node_id))
       node = self._network[node_id]
       try:
@@ -272,10 +348,16 @@ class MotorController:
          # Save new PDO configuration to node
          node.tpdo.save() # node must be in PRE-OPERATIONAL NMT state
       except Exception as e:
-         logging.error("Could not configure TPDO {} for node {}".format(pdo_id, node_id))
+         logging.error("Could not configure TPDO {} for node {}. Error: {}".format(pdo_id, node_id, e))
 
    def setRPDO(self, node_id=1, pdo_id=1):
-      """Sets the RPDO mapping"""
+      """Sets the RPDO mapping
+      
+      Params
+      --
+      @param node_id CAN node ID [1,127]
+      @param pdo_id PDO ID {1,2,3,4}
+      """
       logging.info("Setting up RPDO {} of node {}".format(pdo_id, node_id))
       node = self._network[node_id]
       try:
@@ -293,7 +375,13 @@ class MotorController:
          logging.error("Could not configure RPDO {} for node {}".format(pdo_id, node_id))
 
    def startRPDO(self, node=1, pdo_id=1, dt=0.1):
-      """ Start a particular RPDO for a particular node"""
+      """ Start a particular RPDO for a particular node
+      Params
+      --
+      @param node Node ID [1,127]
+      @param pdo_id PDO ID  in {1,2,3,4}
+      @param dt PDO transmission frequency
+      """
       logging.info("Starting RPDO {} of node {}".format(pdo_id, node))
       node = self._network[node]
       try:
