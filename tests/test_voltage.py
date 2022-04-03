@@ -41,13 +41,20 @@ def main():
     logging.info("Instantiating MotorController object ")
     obj = MotorController(channel='can0', bustype='socketcan_ctypes', bitrate=500000, node_ids=None, debug=True, eds_file='./eds/ZLAC8030L-V1.0.eds')
 
-    for i in range(3):
-        for node in node_ids:
-            node=int(node)
+    # for i in range(3):
+    #     for node in node_ids:
+    #         node=int(node)
 
-            v = obj.getVelocity(node)
-            logging.warn("Voltage read by node {} = {} V".format(node, v))
-        time.sleep(1)
+    #         try:
+    #             v_dict = obj.getVoltage(node)
+    #             v = v_dict['value']
+    #             logging.warn("Voltage read by node {} = {} V".format(node, v))
+    #         except Exception as e:
+    #             logging.error("Could not read voltage for node {}".format(node))
+    #     time.sleep(1)
+
+    logging.warn("Executing a reset")
+    obj.reset()
 
     logging.info("Done instantiating. Disconnecting CAN network")
     obj.disconnectNetwork()
