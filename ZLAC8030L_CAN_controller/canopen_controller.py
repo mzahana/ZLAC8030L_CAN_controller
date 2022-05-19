@@ -44,7 +44,7 @@ class MotorController:
    """MotorController
    Implements convenience methods to monitor and operate ZLAC8030L drivers
    """
-   def __init__(self, channel='can0', bustype='socketcan', bitrate=500000, node_ids=None, debug=False, eds_file=None, sync_dt=0.01):
+   def __init__(self, channel='can0', bustype='socketcan', bitrate=500000, node_ids=None, debug=False, eds_file=None, sync_dt=0.02):
       """
       @brief Creates and connects to CAN bus
 
@@ -154,7 +154,7 @@ class MotorController:
          # Separately start the RPDO transmission.
          # This is to avoid flooding the bus before being done witht the configuration
          for id in self._network.scanner.nodes:
-            self.startRPDO(node=id, pdo_id=1, dt=0.1)
+            self.startRPDO(node=id, pdo_id=1, dt=0.02)
 
          # Transmit SYNC every 100 ms
          logging.info("Starting network Sync\n")
