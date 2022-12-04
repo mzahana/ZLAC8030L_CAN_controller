@@ -364,10 +364,12 @@ class MotorController:
          node.rpdo.read()
          node.rpdo[pdo_id].clear()
          node.rpdo[pdo_id].add_variable('Target speed')
+         node.rpdo[pdo_id].add_variable('Target torque')
          node.rpdo[pdo_id].enabled = True
          node.rpdo.save()
 
          node.rpdo[pdo_id]['Target speed'].phys = 0.0
+         node.rpdo[pdo_id]['Target torque'].phys = 0.0
          # Start only after you set all nodes
          # Otherwise, the bus gets busy and can fail!
          #node.rpdo[pdo_id].start(0.1)
@@ -482,6 +484,30 @@ class MotorController:
          node.rpdo[1]['Target speed'].phys = vel
       except Exception as e:
          logging.error("Could not set velocity for node {}. Error: ".format(node_id, e))
+
+   def setTorque(self, node_id=1, current_mA=0.0):
+      """
+      Sets velocity value of a particular node
+
+      Parameters
+      --
+      @param node_id Node ID [int]
+      @param t current_mA desired current value in mA. Range [-30000, 30000]
+      """
+      if (current_mA > 30000):
+         c_val = 30000
+      elif (current_mA < -30000):
+         c_val = -30000
+      else:
+         c_val = current_mA
+
+      try:
+         # Sanity checks
+         self.checkNodeID(node_id)
+         node = self._network[node_id]
+         node.rpdo[1]['Target torque'].phys = c_val
+      except Exception as e:
+         logging.error("Could not set torque/current for node {}. Error: ".format(node_id, e))
 
 
 
