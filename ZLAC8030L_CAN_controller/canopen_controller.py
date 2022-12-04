@@ -44,7 +44,7 @@ class MotorController:
    """MotorController
    Implements convenience methods to monitor and operate ZLAC8030L drivers
    """
-   def __init__(self, channel='can0', bustype='socketcan', bitrate=500000, node_ids=None, debug=False, eds_file=None, sync_dt=0.02):
+   def __init__(self, channel='can0', bustype='socketcan', bitrate=500000, node_ids=None, debug=False, eds_file=None, sync_dt=0.02, mode='velocity'):
       """
       @brief Creates and connects to CAN bus
 
@@ -55,6 +55,7 @@ class MotorController:
       @param bitrate CAN bus bitrate. See Python canopen & can docs
       @param node_ids List of expected node IDs. If None, will continue with the available nodes. If specified, will exit if an expected node does not exist on the bus 
       @debug Print logging/debug messages
+      @param mode [str] 'velocity' for sending velocity setpoints, 'torque' for sending torque setpoints
       """
       self._debug = debug   # what is the use of the _ self._debug
       self._network = canopen.Network() # CAN bus
@@ -63,6 +64,7 @@ class MotorController:
       self._bitrate = bitrate
       self._node_ids = node_ids
       self._sync_dt = sync_dt
+      self._mode = mode
 
       # RPM scaler to be multiplied tby the feedback (current) velocity [rpm]
       self._rpm_scaler = 0.1
@@ -363,13 +365,17 @@ class MotorController:
       try:
          node.rpdo.read()
          node.rpdo[pdo_id].clear()
-         node.rpdo[pdo_id].add_variable('Target speed')
-         node.rpdo[pdo_id].add_variable('Target torque')
+         if (self._mode=='torque'):
+            node.rpdo[pdo_id].add_variable('Target torque')
+         else:
+            node.rpdo[pdo_id].add_variable('Target speed')
          node.rpdo[pdo_id].enabled = True
          node.rpdo.save()
 
-         node.rpdo[pdo_id]['Target speed'].phys = 0.0
-         node.rpdo[pdo_id]['Target torque'].phys = 0.0
+         if (self._mode=='torque'):
+            node.rpdo[pdo_id]['Target torque'].phys = 0.0
+         else:
+            node.rpdo[pdo_id]['Target speed'].phys = 0.0
          # Start only after you set all nodes
          # Otherwise, the bus gets busy and can fail!
          #node.rpdo[pdo_id].start(0.1)
@@ -494,9 +500,15 @@ class MotorController:
       @param node_id Node ID [int]
       @param t current_mA desired current value in mA. Range [-30000, 30000]
       """
+      if (self._mode != 'torque'):
+         logging.error("[MotorController::setTorque] self._mode {} != 'torque' ".format(self._mode))
+         return
+         
       if (current_mA > 30000):
+         logging.warn("[setTorque] target current {} > 30000 ".format(current_mA))
          c_val = 30000
       elif (current_mA < -30000):
+         logging.warn("[setTorque] target current {} < -30000 ".format(current_mA))
          c_val = -30000
       else:
          c_val = current_mA
