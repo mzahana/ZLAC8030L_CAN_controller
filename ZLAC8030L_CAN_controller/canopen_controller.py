@@ -40,6 +40,37 @@ from numpy import var
 # Set logging level. logging.DEBUG will log/print all messages
 logging.basicConfig(level=logging.WARN)
 
+def toHex(intval, nbits):
+    """
+    Converts an integer to hexdecimal.
+    Useful for negative integers where hex() doesn't work as expected
+    Params
+    --
+    intaval: [int] Integer number
+    nbits: [int] Number of bits
+    Returns
+    --
+    String of the hexdecimal value
+    """
+    h = format((intval + (1 << nbits)) % (1 << nbits),'x')
+    if len(h)==1:
+        h="0"+h
+    return h
+
+def toInt(hexval):
+    """
+    Converts hexidecimal value to an integer number, which can be negative
+    Ref: https://www.delftstack.com/howto/python/python-hex-to-int/
+    Params
+    --
+    hexval: [string] String of the hex value
+    """
+    bits = 16
+    val = int(hexval, bits)
+    if val & (1 << (bits-1)):
+        val -= 1 << bits
+    return val
+
 class MotorController:
    """MotorController
    Implements convenience methods to monitor and operate ZLAC8030L drivers
@@ -676,7 +707,9 @@ class MotorController:
                self._error_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw}
                logging.debug('Error register of node {} = {}'.format(node_id, self._error_dict[node_id]))
             if var.name == 'Motor current':
-               self._current_dict[node_id] = {'timestamp':msg.timestamp, 'value':var.raw*0.1}
+               h = toHex(var.raw, 16)
+               val = toInt(h)*0.1
+               self._current_dict[node_id] = {'timestamp':msg.timestamp, 'value':val}
                logging.debug('Motor current of node {} = {}'.format(node_id, self._current_dict[node_id]))
                
       except Exception as e:
