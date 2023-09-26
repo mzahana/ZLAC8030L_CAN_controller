@@ -117,37 +117,42 @@ class MotorController:
       # Following the eaxmple in https://github.com/christiansandberg/canopen/blob/master/examples/simple_ds402_node.py
       # Try to connect
       t0 = time.time() # to calculate total initialization time!
+      # try:
       try:
          self._network.connect(bustype=self._bustype, channel=self._channel, bitrate=self._bitrate)
          self._network.check()
+      except Exception as e:
+         logging.error("Error in Connection: %s. Disconnecting CAN Network", e)
+         self.disconnectNetwork()
 
-         # Detecet connected nodes
-         # This will attempt to read an SDO from nodes 1 - 127
-         t1 = time.time()
-         self._network.scanner.search()
-         dt = time.time() - t1
-         # We may need to wait a short while here to allow all nodes to respond
-         logging.warn('Available nodes: %s', self._network.scanner.nodes)
-         logging.info('Took : %s seconds to search for available nodes', dt)
-                  
-         if node_ids is not None: # User specified the expected nodes that should be available
-            for node_id in node_ids:
-               # Sanity checks
-               if not type(node_id) is int:
-                  logging.error("Only integers are allowed for node ID") 
-                  raise TypeError("Only integers are allowed for node ID")
-               if node_id < 0 or node_id > 127:
-                  logging.error("Node ID %s is not in the range [0,127]", node_id) 
-                  raise Exception("Node ID {} is not in the range [0,127]".format(node_id))
+      # Detecet connected nodes
+      # This will attempt to read an SDO from nodes 1 - 127
+      t1 = time.time()
+      self._network.scanner.search()
+      dt = time.time() - t1
+      # We may need to wait a short while here to allow all nodes to respond
+      logging.warn('Available nodes: %s', self._network.scanner.nodes)
+      logging.info('Took : %s seconds to search for available nodes', dt)
+               
+      if node_ids is not None: # User specified the expected nodes that should be available
+         for node_id in node_ids:
+            # Sanity checks
+            if not type(node_id) is int:
+               logging.error("Only integers are allowed for node ID") 
+               raise TypeError("Only integers are allowed for node ID")
+            if node_id < 0 or node_id > 127:
+               logging.error("Node ID %s is not in the range [0,127]", node_id) 
+               raise Exception("Node ID {} is not in the range [0,127]".format(node_id))
 
-               if not (node_id in self._network.scanner.nodes):
-                  logging.error("Node ID %s is not available in %s",node_id, self._network.scanner.nodes)
-                  raise Exception("Node ID {} is not available in {}".format(node_id, self._network.scanner.nodes)) 
+            if not (node_id in self._network.scanner.nodes):
+               logging.error("Node ID %s is not available in %s",node_id, self._network.scanner.nodes)
+               raise Exception("Node ID {} is not available in {}".format(node_id, self._network.scanner.nodes)) 
 
-         
-         # Add CANopen nodes to the network
-         # This will add the detect nodes to the network and set them up with corresponding Object Dictionaries
-         for node_id in self._network.scanner.nodes:
+      
+      # Add CANopen nodes to the network
+      # This will add the detect nodes to the network and set them up with corresponding Object Dictionaries
+      for node_id in self._network.scanner.nodes:
+         try:
             node = canopen.BaseNode402(node_id, eds_file) # This assumes that we can use the same eds file for all motor drivers
             self._network.add_node(node)
             
@@ -183,27 +188,36 @@ class MotorController:
             assert node.state == 'OPERATION ENABLED'
             
             #logging.info('Device operation mode {}'.format(node.tpdo[1]['Mode of operation display'].phys))
+         except Exception as e:
+               logging.error('Error: %s', e)
 
-         # Separately start the RPDO transmission.
-         # This is to avoid flooding the bus before being done witht the configuration
-         for id in self._network.scanner.nodes:
+
+      # Separately start the RPDO transmission.
+      # This is to avoid flooding the bus before being done witht the configuration
+      for id in self._network.scanner.nodes:
+         try:
             self.startRPDO(node=id, pdo_id=1, dt=0.02)
+         except Exception as e:
+            logging.error('Error: %s', e)
 
-         # Transmit SYNC every 100 ms
-         logging.info("Starting network Sync\n")
+      # Transmit SYNC every 100 ms
+      logging.info("Starting network Sync\n")
+      try:
          self._network.sync.start(sync_dt)
-
-         logging.warn("Total initialization time  = {} seconds".format(time.time() - t0))
-            
       except Exception as e:
-         exc_type, exc_obj, exc_tb = sys.exc_info()
-         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-         logging.error('%s %s %s', exc_type, fname, exc_tb.tb_lineno)
-         traceback.print_exc()
+         logging.error('Error: %s', e)
 
-         # Disconnect from CAN bus
-         self.disconnectNetwork()
-         exit(1)
+      logging.warn("Total initialization time  = {} seconds".format(time.time() - t0))
+            
+      # except Exception as e:
+      #    exc_type, exc_obj, exc_tb = sys.exc_info()
+      #    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      #    logging.error('%s %s %s', exc_type, fname, exc_tb.tb_lineno)
+      #    traceback.print_exc()
+
+      #    # Disconnect from CAN bus
+      #    self.disconnectNetwork()
+      #    exit(1)
       
       # Reaching here means that CAN connection went well.
 
